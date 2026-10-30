@@ -1,0 +1,45 @@
+name: Build EXEPoint
+on: workflow_dispatch
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            args: --onefile --windowed --add-data "logo.png;." --icon=logo.ico
+          - os: macos-latest
+            name: macos
+            args: --windowed --add-data "logo.png:." --icon=logo.icns
+          - os: ubuntu-latest
+            name: linux
+            args: --onefile --add-data "logo.png:."
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk binutils
+      - run: pip install pyinstaller pillow
+      - run: pyinstaller ${{ matrix.args }} EXEPoint.py
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: tar -czf EXEPoint-macos.tar.gz -C dist EXEPoint.app
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf EXEPoint-linux.tar.gz -C dist EXEPoint
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EXEPoint-${{ matrix.name }}
+          path: |
+            dist/EXEPoint.exe
+            EXEPoint-*.tar.gz
